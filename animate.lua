@@ -113,9 +113,9 @@ end)
 
 local getCubicBezier = function (vert)
   if not hascubicbezier then
-    error('Cubic Beziers are not supported', 2)
+    error('Keyframe type, Cubic Beziers are not supported', 2)
   elseif #vert ~= 4 then
-    error('Cubic Bezier must be a table with 4 numbers', 2)
+    error('Keyframe type, Cubic Bezier must be a table with 4 numbers', 2)
   end
 
   local vertices = {}
@@ -123,7 +123,7 @@ local getCubicBezier = function (vert)
     local v = tonumber(vert[i])
 
     if not v then
-      error('Cubic Bezier value #'..i..' expected a number, got a '..type(vert[i]), 2)
+      error('Keyframe type, Cubic Bezier value #'..i..' expected a number, got a '..type(vert[i]), 2)
     end
 
     vertices[i] = v
@@ -182,7 +182,7 @@ local getMethod = function (name)
     if methods[name] then
       return methods[name]
     else
-      error('Invalid method name', 3)
+      error('Keyframe type, the method name is invalid', 3)
     end
   end
 
@@ -197,9 +197,9 @@ local getMethod = function (name)
   end
 
   if hascubicbezier then
-    error('Type must be a string or a table representing a Cubic Bezier', 3)
+    error('Keyframe type must be a string or a table representing a Cubic Bezier', 3)
   else
-    error('Type must be a string, Cubic Beziers are not supported', 3)
+    error('Keyframe type must be a string, Cubic Beziers are not supported', 3)
   end
 end
 
