@@ -135,41 +135,45 @@ local getCubicBezier = function (vert)
   end
 end
 
-local progress, animation = {}, {}
+local playback, animation = {}, {}
 
-local progressmt  = {__index = progress }
+local playbackmt  = {__index = playback }
 local animationmt = {__index = animation}
 
-function progress:set (time)
-  self._time = math.max(time, 0)
+function playback:getPosition() return self._position end
 
-  self._value = self._anim:evaluate(self._time, self._loop)
+function playback:setPosition (position)
+  self._position = math.max(position, 0)
+
+  self._value = self._anim:evaluate(self._position, self._loop)
 
   return self._value, self:isCompleted()
 end
 
-function progress:update (dt)
+function playback:update (dt)
   if not self._paused then
-    return self:set(self._time + dt)
+    return self:set(self._position + dt)
   else
     return self._value, self:isCompleted()
   end
 end
 
-function progress:pause() self._paused = true end
-function progress:play() self._paused = false end
-function progress:isPaused() return self._paused end
+function playback:getAnimation() return self._anim end
 
-function progress:isLooping () return self._loop end
-function progress:setLooping (loop) self._loop = not not loop end
+function playback:pause() self._paused = true end
+function playback:play() self._paused = false end
+function playback:isPaused() return self._paused end
 
-function progress:getValue () return self._value end
-function progress:isCompleted ()
-  return self._time == 0 or self._time >= self._anim:getDuration()
+function playback:isLooping () return self._loop end
+function playback:setLooping (loop) self._loop = not not loop end
+
+function playback:getValue () return self._value end
+function playback:isCompleted ()
+  return self._position == 0 or self._position >= self._anim:getLength()
 end
-function progress:reset ()
+function playback:reset ()
   self._paused = false
-  self._time = 0
+  self._position = 0
   self._value = self._anim:evaluate(0)
 end
 
@@ -206,10 +210,10 @@ end
 function animation:add (keyframe)
   local name = keyframe[1]
 
-  local duration, value = keyframe.duration, keyframe.value
+  local length, value = keyframe.length, keyframe.value
 
-  if (not tonumber(duration)) and name ~= 'set' then
-    error('Keyframe duration property (number expected, got '..type(duration)..')', 2)
+  if (not tonumber(length)) and name ~= 'set' then
+    error('Keyframe length property (number expected, got '..type(length)..')', 2)
   elseif (not tonumber(value)) and name ~= 'delay' then
     error('Keyframe value property (number expected, got '..type(value)..')', 2)
   end
@@ -218,23 +222,23 @@ function animation:add (keyframe)
 
   table.insert(self.keyframes, keyframe)
 
-  self._duration = self._duration + duration
+  self._length = self._length + length
   self._lastvalue = value
 
   return self
 end
 
-function animation:getDuration ()
-  return self._duration
+function animation:getLength ()
+  return self._length
 end
 
-function animation:evaluate (time, loop)
-  if time >= self._duration then
+function animation:evaluate (position, loop)
+  if position >= self._length then
     if not loop then
       return self._lastvalue
     else
-      time = time % self._duration
-      time = time == 0 and self._duration or time
+      position = position % self._length
+      position = position == 0 and self._length or position
     end
   end
 
@@ -244,7 +248,7 @@ function animation:evaluate (time, loop)
       initial = tonumber(keyframe.value)
     end
 
-    local delta = (time - start) / tonumber(keyframe.duration)
+    local delta = (position - start) / tonumber(keyframe.length)
 
     if delta >= 0 and delta <= 1 then
       if keyframe[1] == 'delay' then
@@ -256,7 +260,7 @@ function animation:evaluate (time, loop)
 
       return initial + method(delta, keyframe) * change
     else
-      start = start + tonumber(keyframe.duration)
+      start = start + tonumber(keyframe.length)
       initial = tonumber(keyframe.value)
     end
   end
@@ -264,15 +268,15 @@ function animation:evaluate (time, loop)
   return self._initial
 end
 
-function animation:progress (loop)
+function animation:newPlayback (loop)
   return setmetatable({
     _loop = loop,
     _anim = self,
-    _time = 0,
+    _position = 0,
     _value = self:evaluate(0),
     _completed = false,
     _paused = false
-  }, progressmt)
+  }, playbackmt)
 end
 
 local new = function (start)
@@ -285,7 +289,7 @@ local new = function (start)
   return setmetatable({
     _initial = value,
     _lastvalue = value,
-    _duration = 0,
+    _length = 0,
     keyframes = {}
   }, animationmt)
 end

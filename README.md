@@ -22,17 +22,17 @@ local animate = require 'animate'
 You can then create a new `animation`, and start adding keyframes
 ```lua
 local animation = animate.new(10) -- Initial value 10
-  :add{'delay', duration = 10}
-  :add{'linear', duration = 4, value = 12}
-  :add{'cubic-inout', duration = 3, value = 10}
+  :add{'delay', length = 10}
+  :add{'linear', length = 4, value = 12}
+  :add{'cubic-inout', length = 3, value = 10}
 ```
 
-Generally you want to create a `progress` object from your `animation`
+Generally you want to create a `playback` object from your `animation`
 ```lua
-local progress = animation:progress()
+local progress = animation:newPlayback()
 ```
 
-Then in your main loop you would call `progress:update(dt)` to get the new value of the animation.
+Then in your main loop you would call `playback:update(dt)` to get the new value of the animation.
 
 Check the [wiki][wiki] for information on what each function does.
 
