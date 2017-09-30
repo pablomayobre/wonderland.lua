@@ -106,6 +106,17 @@ for name, func in pairs(base) do
   end
 end
 
+local str = "bad argument #%s to '%s' (number expected, got %s)"
+local checknumber = function (func, arg, value)
+  local v = tonumber(value)
+  local typ = type(value)
+
+  if not v then
+    error(str:format(arg, func, typ), 3)
+  end
+
+  return v
+end
 
 local hascubicbezier, cubicBezier = pcall(function ()
   return assert(love.math.newBezierCurve) --luacheck: std love+luajit
@@ -143,6 +154,8 @@ local animationmt = {__index = animation}
 function playback:getPosition() return self._position end
 
 function playback:setPosition (position)
+  position = checknumber('playback:setPosition', 1, position)
+
   self._position = math.max(position, 0)
 
   self._value = self._anim:evaluate(self._position, self._loop)
@@ -151,6 +164,8 @@ function playback:setPosition (position)
 end
 
 function playback:update (dt)
+  dt = checknumber('playback:update', 1, dt)
+
   if not self._paused then
     return self:set(self._position + dt)
   else
@@ -280,15 +295,11 @@ function animation:newPlayback (loop)
 end
 
 local new = function (start)
-  local value = tonumber(start or 0)
-
-  if not value then
-    error('bad argument #1 to wonderland.new (number expected, got '..type(start)..')', 2)
-  end
+  start = checknumber('wonderland.new', 1, start or 0)
 
   return setmetatable({
-    _initial = value,
-    _lastvalue = value,
+    _initial = start,
+    _lastvalue = start,
     _length = 0,
     keyframes = {}
   }, animationmt)
