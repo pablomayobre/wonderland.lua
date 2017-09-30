@@ -1,7 +1,7 @@
-local animate = {
-  _VERSION     = 'animate 0.0.0',
+local wonderland = {
+  _VERSION     = 'wonderland 0.0.0',
   _DESCRIPTION = 'Tweening for lua with keyframe chaining',
-  _URL         = 'https://github.com/Positive07/animate.lua',
+  _URL         = 'https://github.com/Positive07/wonderland.lua',
   _LICENSE     = [[
     MIT LICENSE
 
@@ -283,7 +283,7 @@ local new = function (start)
   local value = tonumber(start or 0)
 
   if not value then
-    error('bad argument #1 to animate.new (number expected, got '..type(start)..')', 2)
+    error('bad argument #1 to wonderland.new (number expected, got '..type(start)..')', 2)
   end
 
   return setmetatable({
@@ -304,8 +304,8 @@ function animation:clone ()
   return clone
 end
 
-animate.new = new --Main function!
-animate.methods = methods
-animate.getCubicBezier = getCubicBezier
+wonderland.new = new --Main function!
+wonderland.methods = methods
+wonderland.getCubicBezier = getCubicBezier
 
-return animate
+return wonderland
