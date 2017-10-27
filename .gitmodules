@@ -1,0 +1,3 @@
+[submodule "wonderland"]
+	path = wonderland
+	url = git@github.com:Positive07/wonderland.lua.git
