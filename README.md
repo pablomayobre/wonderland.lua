@@ -39,6 +39,7 @@ Check the [wiki][wiki] for information on what each function does.
 ## License
 
 Wonderland is licensed under the terms of the [MIT License][mit].
+
 Copyright (c) 2017 Pablo A. Mayobre ([Positive07][positive])
 
 [wonderland]: https://github.com/Positive07/wonderland.lua

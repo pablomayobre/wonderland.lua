@@ -84,7 +84,7 @@ for name, func in pairs(base) do
 
   methods[name..'-out'] = function (x, ...)
     x = 1 - x
-    return func(x, ...)
+    return 1 - func(x, ...)
   end
 
   methods[name..'-inout'] = function (x, ...)
@@ -167,7 +167,7 @@ function playback:update (dt)
   dt = checknumber('playback:update', 1, dt)
 
   if not self._paused then
-    return self:set(self._position + dt)
+    return self:setPosition(self._position + dt)
   else
     return self._value, self:isCompleted()
   end
