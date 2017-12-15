@@ -28,27 +28,29 @@ local wonderland = {
   ]]
 }
 
-local methods = {
-  --Basic methods:
+--> type <Method> (<Number>, <Keyframe>) => <Number>
+
+local methods = { --> <Map (String, Method)>
+  -- Basic methods:
   linear = function (x) return x end,
   delay  = function ()  return 0 end,
   set    = function ()  return 0 end
 }
 
 do
-  local base = {
-    --Power methods:
+  local base = { --> <Map (String, Method)>
+    -- Power methods:
     quad  = function (x) return x^2 end,
     cubic = function (x) return x^3 end,
     quart = function (x) return x^4 end,
     quint = function (x) return x^5 end,
 
-    --Simple methods:
+    -- Simple methods:
     sine  = function (x) return 1 - math.cos(x * (math.pi / 2)) end,
     expo  = function (x) return x == 0 and 0 or 2 ^ (10 * (x - 1)) end,
     circ  = function (x) return 1 - math.sqrt(1 - x * x) end,
 
-    --Complex methods:
+    -- Complex methods:
     elastic = function (x, tab)
       if x == 0 or x == 1 then return x end
       local s, period, amplitude
@@ -79,45 +81,55 @@ do
     end
   }
 
-  --"in", "out", "inout", "outin" variations of the above methods
+  -- "in", "out", "inout", "outin" variations of the above methods
   for name, func in pairs(base) do
     methods[name..'-in'] = func
 
-    methods[name..'-out'] = function (x, ...)
+    methods[name..'-out'] = function (x, tab)
       x = 1 - x
-      return 1 - func(x, ...)
+      return 1 - func(x, tab)
     end
 
-    methods[name..'-inout'] = function (x, ...)
+    methods[name..'-inout'] = function (x, tab)
       x = x * 2
       if x < 1 then
-        return .5 * func(x, ...)
+        return .5 * func(x, tab)
       else
-        return 1 - func(2 - x, ...) * .5
+        return 1 - func(2 - x, tab) * .5
       end
     end
 
-    methods[name..'-outin'] = function (x, ...)
+    methods[name..'-outin'] = function (x, tab)
       x = x * 2
       if x < 1 then
-        return .5 * (1 - func(1 - x, ...))
+        return .5 * (1 - func(1 - x, tab))
       else
-        return .5 * (1 + func(x - 1, ...))
+        return .5 * (1 + func(x - 1, tab))
       end
     end
   end
 end
 
---Cubic Bezier support for LÖVE:
+-- Cubic Bezier support for LÖVE
 local hasCubicBezier, cubicBezier = pcall(function ()
   return assert(love.math.newBezierCurve) --luacheck: std love+luajit
 end)
 
+--> type <Vertices> {
+--    <Number>, <Number>, | (x, y) coordinates for the first vertex
+--    <Number>, <Number>, | (x, y) coordinates for the second one
+-- }
+
+--> (<Vertices>) => <Method>
 local function getCubicBezier (vert)
   if not hasCubicBezier then
     error('Keyframe type, Cubic Beziers are not supported', 2)
   elseif #vert ~= 4 then
     error('Keyframe type, Cubic Bezier must be a table with 4 numbers', 2)
+  end
+
+  if vert.cubicbezier then
+    return vert.cubicbezier
   end
 
   local vertices = {}
@@ -133,13 +145,17 @@ local function getCubicBezier (vert)
 
   local curve = cubicBezier(vertices)
 
-  return function (x)
+  local function f (x)
     return curve:evaluate(x)
   end
+
+  vert.cubicbezier = f
+  return f
 end
 
 --Type Checking:
 local str = "bad argument #%s to '%s' (number expected, got %s)"
+--> (<String>, <String>, <any>) => <Number>
 local function checknumber (func, arg, value)
   local v = tonumber(value)
   local typ = type(value)
@@ -151,6 +167,7 @@ local function checknumber (func, arg, value)
   return v
 end
 
+--> (<Method> | <String> | <Vertices>) => <Method>
 local function getMethod (name)
   if type(name) == 'function' then
     return name
@@ -185,6 +202,16 @@ end
 local playback = {}
 playback.__index = playback
 
+--> type <Playback> {
+--    loop      <Bool>,
+--    animation <Animation>,
+--    position  <Number>,
+--    value     <Number>,
+--
+--    @meta = playback
+-- }
+
+--> (<Animation>, <Bool>) => <Playback>
 local function newPlayback (animation, loop)
   local play = {
     loop = loop,
@@ -198,6 +225,8 @@ local function newPlayback (animation, loop)
   return play
 end
 
+--> <Playback>:seek (position <Number>) => void
+--| Sets the position of the playback to the given value.
 function playback:seek (position)
   position = checknumber('playback:seek', 1, position)
 
@@ -205,31 +234,49 @@ function playback:seek (position)
   self.value = self.animation:evaluate(self.position, self.loop)
 end
 
+--> <Playback>:tell () => value <Number>, completed <Bool>
+--| Returns the value of the playback and whether the playback is completed.
 function playback:tell ()
   return self.value, self:isCompleted()
 end
 
-function playback:update (dt)
-  dt = checknumber('playback:update', 1, dt)
+--> <Playback>:update (inteval <Number>) => value <Number>, completed <Bool>
+--| Moves the position forward by the given interval of time.
+--| It returns the new value of the playback and whether the playback is completed.
+function playback:update (interval)
+  interval = checknumber('playback:update', 1, interval)
 
-  self:seek(self.position + dt)
+  self:seek(self.position + interval)
 
   return self:tell()
 end
 
+--> <Playback>:isCompleted () => completed <Bool>
+--| Returns whether the playback is completed or not
 function playback:isCompleted ()
   return self.position == 0 or self.position >= self.animation:getLength()
 end
 
+--> <Playback>:reset () => void
+--| Resets the playback to 0, it's equivalent to `Playback:seek(0)`
 function playback:reset ()
   self.position = 0
   self.value = self.animation:evaluate(0)
 end
 
---Animation Objects:
 local animation = {}
 animation.__index = animation
 
+--> type <Animation> {
+--   startValue <Number>,
+--   finalValue <Number>,
+--   length     <Number>,
+--   keyframes  <Array (Keyframe)>,
+--
+--   @meta = animation
+-- }
+
+--> (<Number>) => <Animation>
 local function newAnimation (start)
   start = checknumber('wonderland.new', 1, start or 0)
 
@@ -245,6 +292,16 @@ local function newAnimation (start)
   return anim
 end
 
+--> type <Keyframe> {
+--    <Method> | <String> | <Vertices>,
+--    length <Number>,
+--    value  <Number>
+--    ...
+-- }
+
+--> <Animation>:add (keyframe <Keyframe>) => self
+--| Adds a new keyframe to the animation
+--| !see Keyframe
 function animation:add (keyframe)
   local name = keyframe[1]
 
@@ -266,6 +323,12 @@ function animation:add (keyframe)
   return self
 end
 
+--> <Animation>:evaluate (position <Number>, loop <Bool>) => value <Number>
+--| Evaluate the animation, the animation will be evaluated until the specified position is reached
+--| and the resulting value will be returned.
+--|
+--| If position is bigger than the animation length, the animation final value will be returned.
+--| If loop is true then the position will be clamped to the duration of the animation.
 function animation:evaluate (position, loop)
   if position >= self.length then
     if not loop then
@@ -302,6 +365,9 @@ function animation:evaluate (position, loop)
   return self.startValue
 end
 
+--> <Animation>:clone () => new <Animation>
+--| Create a new Animation object with the same keyframes as the current Animation.
+--| The original Animation won't be modified if new keyframes are added to the new animation.
 function animation:clone ()
   local clone = newAnimation(self.startValue)
 
@@ -312,13 +378,29 @@ function animation:clone ()
   return clone
 end
 
+--> <Animation>:newPlayback (loop <Bool>) => playback <Playback>
+--| Create a new Playback object for this animation.
+--| You can make the playback loop by passing `true` as first argument
+--| !see Playback
 function animation:newPlayback (loop)
   return newPlayback(self, loop)
 end
 
---Exposed functions:
-wonderland.new = newAnimation --Main function!
+--| wonderland.new
+--| Creates a new animation object to which you can later add keyframes.
+--| You can pass a start value to this function, so that the animation doesn't start at 0
+wonderland.new = newAnimation
+
+--> wonderland.methods
+--| A table containing a bunch of easing methods.
 wonderland.methods = methods
+
+--> wonderland.getCubicBezier
+--| Creates cubic bezier curve with the first vertex being (0, 0),
+--| the second and third vertex being the one from the vert table
+--| And the last one being (1, 1).
+--| !see Vertices
+--| !see Method
 wonderland.getCubicBezier = getCubicBezier
 
 return setmetatable(wonderland, {__call = function (_, ...) return newAnimation(...) end})
