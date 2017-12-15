@@ -120,6 +120,7 @@ end)
 --    <Number>, <Number>, | (x, y) coordinates for the second one
 -- }
 
+local invalidvertex = 'Keyframe type, Cubic Bezier value #%s expected a number, got a %s'
 --> (<Vertices>) => <Method>
 local function getCubicBezier (vert)
   if not hasCubicBezier then
@@ -137,7 +138,7 @@ local function getCubicBezier (vert)
     local v = tonumber(vert[i])
 
     if not v then
-      error('Keyframe type, Cubic Bezier value #'..i..' expected a number, got a '..type(vert[i]), 2)
+      error(invalidvertex:format(i, type(vert[i])), 2)
     end
 
     vertices[i] = v
@@ -154,14 +155,14 @@ local function getCubicBezier (vert)
 end
 
 --Type Checking:
-local str = "bad argument #%s to '%s' (number expected, got %s)"
+local invalidnumber = "bad argument #%s to '%s' (number expected, got %s)"
 --> (<String>, <String>, <any>) => <Number>
 local function checknumber (func, arg, value)
   local v = tonumber(value)
   local typ = type(value)
 
   if not v then
-    error(str:format(arg, func, typ), 3)
+    error(invalidnumber:format(arg, func, typ), 3)
   end
 
   return v
