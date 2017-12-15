@@ -28,20 +28,29 @@ local wonderland = {
   ]]
 }
 
-local base = {
-  quad  = function (x) return x^2 end,
-  cubic = function (x) return x^3 end,
-  quart = function (x) return x^4 end,
-  quint = function (x) return x^5 end,
-  sine = function (x) return 1 - math.cos(x * (math.pi / 2)) end,
-  expo = function (x) return x == 0 and 0 or 2 ^ (10 * (x - 1)) end,
-  circ = function (x) return 1 - math.sqrt(1 - x * x) end,
-  elastic = function (x, tab)
-    if x == 0 then
-      return 0
-    elseif x == 1 then
-      return 1
-    else
+local methods = {
+  --Basic methods:
+  linear = function (x) return x end,
+  delay  = function ()  return 0 end,
+  set    = function ()  return 0 end
+}
+
+do
+  local base = {
+    --Power methods:
+    quad  = function (x) return x^2 end,
+    cubic = function (x) return x^3 end,
+    quart = function (x) return x^4 end,
+    quint = function (x) return x^5 end,
+
+    --Simple methods:
+    sine  = function (x) return 1 - math.cos(x * (math.pi / 2)) end,
+    expo  = function (x) return x == 0 and 0 or 2 ^ (10 * (x - 1)) end,
+    circ  = function (x) return 1 - math.sqrt(1 - x * x) end,
+
+    --Complex methods:
+    elastic = function (x, tab)
+      if x == 0 or x == 1 then return x end
       local s, period, amplitude
       x, period = x - 1, (not tab.period or tab.period > 1) and 0.3 or tab.period
       if (tab.amplitude or 0) < 1 then
@@ -52,78 +61,60 @@ local base = {
         s = math.sin(x * (2 * math.pi) / period - math.asin(1 / amplitude))
       end
       return -(amplitude * 2 ^ (10 * x) * s)
+    end,
+    back = function (x, tab)
+      local amount = tonumber(tab.amount) or 1.70158
+      return x * x * ((amount + 1) * x - amount)
+    end,
+    bounce = function (x)
+      if x < 1 / 2.75 then
+        return 7.5625 * x^2
+      elseif x < 2 / 2.75 then
+        return 7.5625 * (x - (1.5 / 2.75))^2 + 0.75
+      elseif x < 2.5 / 2.75 then
+        return 7.5625 * (x - (2.25 / 2.75))^2 + 0.9375
+      else
+        return 7.5625 * (x - (2.625 / 2.75))^2 + 0.984375
+      end
     end
-  end,
-  back = function (x, tab)
-    local amount = tonumber(tab.amount) or 1.70158
-    return x * x * ((amount + 1) * x - amount)
-  end,
-  bounce = function (x)
-    if x < 1 / 2.75 then
-      return 7.5625 * x^2
-    elseif x < 2 / 2.75 then
-      return 7.5625 * (x - (1.5 / 2.75))^2 + 0.75
-    elseif x < 2.5 / 2.75 then
-      return 7.5625 * (x - (2.25 / 2.75))^2 + 0.9375
-    else
-      return 7.5625 * (x - (2.625 / 2.75))^2 + 0.984375
+  }
+
+  --"in", "out", "inout", "outin" variations of the above methods
+  for name, func in pairs(base) do
+    methods[name..'-in'] = func
+
+    methods[name..'-out'] = function (x, ...)
+      x = 1 - x
+      return 1 - func(x, ...)
     end
-  end
-}
 
-local methods = {
-  linear = function (x)
-    return x
-  end,
-  delay = function () return 0 end,
-  set   = function () return 0 end
-}
-
-for name, func in pairs(base) do
-  methods[name..'-in'] = func
-
-  methods[name..'-out'] = function (x, ...)
-    x = 1 - x
-    return 1 - func(x, ...)
-  end
-
-  methods[name..'-inout'] = function (x, ...)
-    x = x * 2
-    if x < 1 then
-      return .5 * func(x, ...)
-    else
-      return 1 - func(2 - x, ...) * .5
+    methods[name..'-inout'] = function (x, ...)
+      x = x * 2
+      if x < 1 then
+        return .5 * func(x, ...)
+      else
+        return 1 - func(2 - x, ...) * .5
+      end
     end
-  end
 
-  methods[name..'-outin'] = function (x, ...)
-    x = x * 2
-    if x < 1 then
-      return .5 * (1 - func(1 - x, ...))
-    else
-      return .5 * (1 + func(x - 1, ...))
+    methods[name..'-outin'] = function (x, ...)
+      x = x * 2
+      if x < 1 then
+        return .5 * (1 - func(1 - x, ...))
+      else
+        return .5 * (1 + func(x - 1, ...))
+      end
     end
   end
 end
 
-local str = "bad argument #%s to '%s' (number expected, got %s)"
-local checknumber = function (func, arg, value)
-  local v = tonumber(value)
-  local typ = type(value)
-
-  if not v then
-    error(str:format(arg, func, typ), 3)
-  end
-
-  return v
-end
-
-local hascubicbezier, cubicBezier = pcall(function ()
+--Cubic Bezier support for LÖVE:
+local hasCubicBezier, cubicBezier = pcall(function ()
   return assert(love.math.newBezierCurve) --luacheck: std love+luajit
 end)
 
-local getCubicBezier = function (vert)
-  if not hascubicbezier then
+local function getCubicBezier (vert)
+  if not hasCubicBezier then
     error('Keyframe type, Cubic Beziers are not supported', 2)
   elseif #vert ~= 4 then
     error('Keyframe type, Cubic Bezier must be a table with 4 numbers', 2)
@@ -141,58 +132,26 @@ local getCubicBezier = function (vert)
   end
 
   local curve = cubicBezier(vertices)
+
   return function (x)
     return curve:evaluate(x)
   end
 end
 
-local playback, animation = {}, {}
+--Type Checking:
+local str = "bad argument #%s to '%s' (number expected, got %s)"
+local function checknumber (func, arg, value)
+  local v = tonumber(value)
+  local typ = type(value)
 
-local playbackmt  = {__index = playback }
-local animationmt = {__index = animation}
-
-function playback:getPosition() return self._position end
-
-function playback:setPosition (position)
-  position = checknumber('playback:setPosition', 1, position)
-
-  self._position = math.max(position, 0)
-
-  self._value = self._anim:evaluate(self._position, self._loop)
-
-  return self._value, self:isCompleted()
-end
-
-function playback:update (dt)
-  dt = checknumber('playback:update', 1, dt)
-
-  if not self._paused then
-    return self:setPosition(self._position + dt)
-  else
-    return self._value, self:isCompleted()
+  if not v then
+    error(str:format(arg, func, typ), 3)
   end
+
+  return v
 end
 
-function playback:getAnimation() return self._anim end
-
-function playback:pause() self._paused = true end
-function playback:play() self._paused = false end
-function playback:isPaused() return self._paused end
-
-function playback:isLooping () return self._loop end
-function playback:setLooping (loop) self._loop = not not loop end
-
-function playback:getValue () return self._value end
-function playback:isCompleted ()
-  return self._position == 0 or self._position >= self._anim:getLength()
-end
-function playback:reset ()
-  self._paused = false
-  self._position = 0
-  self._value = self._anim:evaluate(0)
-end
-
-local getMethod = function (name)
+local function getMethod (name)
   if type(name) == 'function' then
     return name
   end
@@ -215,11 +174,75 @@ local getMethod = function (name)
     end
   end
 
-  if hascubicbezier then
-    error('Keyframe type must be a string or a table representing a Cubic Bezier', 3)
+  if hasCubicBezier then
+    error('Keyframe type must be a string, function, or a table representing a Cubic Bezier', 3)
   else
-    error('Keyframe type must be a string, Cubic Beziers are not supported', 3)
+    error('Keyframe type must be a string or function, Cubic Beziers are not supported', 3)
   end
+end
+
+--Playback Objects:
+local playback = {}
+playback.__index = playback
+
+local function newPlayback (animation, loop)
+  local play = {
+    loop = loop,
+    animation = animation,
+    position = 0,
+    value = animation:evaluate(0),
+  }
+
+  setmetatable(play, playback)
+
+  return play
+end
+
+function playback:seek (position)
+  position = checknumber('playback:seek', 1, position)
+
+  self.position = math.max(position, 0)
+  self.value = self.animation:evaluate(self.position, self.loop)
+end
+
+function playback:tell ()
+  return self.value, self:isCompleted()
+end
+
+function playback:update (dt)
+  dt = checknumber('playback:update', 1, dt)
+
+  self:seek(self.position + dt)
+
+  return self:tell()
+end
+
+function playback:isCompleted ()
+  return self.position == 0 or self.position >= self.animation:getLength()
+end
+
+function playback:reset ()
+  self.position = 0
+  self.value = self.animation:evaluate(0)
+end
+
+--Animation Objects:
+local animation = {}
+animation.__index = animation
+
+local function newAnimation (start)
+  start = checknumber('wonderland.new', 1, start or 0)
+
+  local anim = {
+    startValue = start,
+    finalValue = start,
+    length = 0,
+    keyframes = {}
+  }
+
+  setmetatable(anim, animation)
+
+  return anim
 end
 
 function animation:add (keyframe)
@@ -237,27 +260,23 @@ function animation:add (keyframe)
 
   table.insert(self.keyframes, keyframe)
 
-  self._length = self._length + length
-  self._lastvalue = value
+  self.length = self.length + length
+  self.finalValue = value
 
   return self
 end
 
-function animation:getLength ()
-  return self._length
-end
-
 function animation:evaluate (position, loop)
-  if position >= self._length then
+  if position >= self.length then
     if not loop then
-      return self._lastvalue
+      return self.finalValue
     else
-      position = position % self._length
-      position = position == 0 and self._length or position
+      position = position % self.length
+      position = position == 0 and self.length or position
     end
   end
 
-  local start, initial = 0, self._initial
+  local start, initial = 0, self.startValue
   for _, keyframe in ipairs(self.keyframes) do
     if keyframe[1] == 'set' then
       initial = tonumber(keyframe.value)
@@ -280,33 +299,11 @@ function animation:evaluate (position, loop)
     end
   end
 
-  return self._initial
-end
-
-function animation:newPlayback (loop)
-  return setmetatable({
-    _loop = loop,
-    _anim = self,
-    _position = 0,
-    _value = self:evaluate(0),
-    _completed = false,
-    _paused = false
-  }, playbackmt)
-end
-
-local new = function (start)
-  start = checknumber('wonderland.new', 1, start or 0)
-
-  return setmetatable({
-    _initial = start,
-    _lastvalue = start,
-    _length = 0,
-    keyframes = {}
-  }, animationmt)
+  return self.startValue
 end
 
 function animation:clone ()
-  local clone = new(self._initial)
+  local clone = newAnimation(self.startValue)
 
   for _, keyframe in self.keyframes do
     clone:add(keyframe)
@@ -315,8 +312,13 @@ function animation:clone ()
   return clone
 end
 
-wonderland.new = new --Main function!
+function animation:newPlayback (loop)
+  return newPlayback(self, loop)
+end
+
+--Exposed functions:
+wonderland.new = newAnimation --Main function!
 wonderland.methods = methods
 wonderland.getCubicBezier = getCubicBezier
 
-return wonderland
+return setmetatable(wonderland, {__call = function (_, ...) return newAnimation(...) end})
